@@ -13,11 +13,11 @@ https://www.youtube.com/playlist?list=PLbPvnlmz6e_L_3Zw_fGtMcMY0eAOZnN-H
 ## Como usar as ferramentas?
 Step 1 --> Faça clone do projeto 
 ```
-git clone
+git clone https://github.com/wlcamargo/spark-airflow
 ```
 Step 2 --> Entre na pasta do projeto
 ```
-cd 
+cd spark-airflow
 ```
 Step 3 --> Baixe as imagens e rode os containers
 ```
