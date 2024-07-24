@@ -1,0 +1,79 @@
+x-spark-common: &spark-common
+  image: bitnami/spark:3.5.1
+  volumes:
+    - ./jobs:/opt/bitnami/spark/jobs
+  networks:
+    - spark-airflow
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - airflow.env
+  volumes:
+    - ./jobs:/opt/airflow/jobs
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+  depends_on:
+    - postgres
+  networks:
+    - spark-airflow
+
+services:
+  spark-master:
+    <<: *spark-common
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+      - "4040:4040"
+
+  spark-worker:
+    <<: *spark-common
+    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+    environment:
+      SPARK_MODE: worker
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 1g
+      SPARK_MASTER_URL: spark://spark-master:7077
+
+  postgres:
+    image: postgres:14.0
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    networks:
+      - spark-airflow
+
+  webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8077:8080"
+    depends_on:
+      - scheduler
+
+  scheduler:
+    <<: *airflow-common
+    command: bash -c "airflow db migrate && airflow users create --username admin --firstname Wallace --lastname Graca --role Admin --email wallacecpdg@gmail.com --password admin && airflow scheduler"
+
+  jupyter:
+    image: jupyter/pyspark-notebook:x86_64-ubuntu-22.04
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    volumes:
+      - ./jobs:/home/jovyan/work
+    ports:
+      - "8888:8888"
+    networks:
+      - spark-airflow
+    depends_on:
+      - spark-master
+      - spark-worker
+
+networks:
+  spark-airflow:
